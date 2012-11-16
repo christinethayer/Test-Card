@@ -1,0 +1,170 @@
+#!/bin/bash
+
+BASE="`basename $0`"
+FOLDER="card+app+zerver"
+ZIP="$FOLDER.zip"
+ZIP_URL="http://cards.jairaj.org/files/$ZIP"
+
+
+
+# Commands
+
+newproject () {
+	if [ -z "$1" ] ; then
+		echo "$BASE: usage: $BASE new <app_name>"
+		exit 1
+	fi
+
+	if [ -f "$1" ] || [ -d "$1" ] ; then
+		echo "$BASE: $1 already exists in this directory"
+		exit 1
+	fi
+
+	mkdir "$1"
+	cd "$1"
+
+	curl "$ZIP_URL" >"$ZIP" 2>/dev/null
+	if [ "$?" != "0" ] ; then
+		cd ..
+		rm -r "$1"
+		echo "$BASE: failed to fetching app template"
+		exit 1
+	fi
+
+	unzip "$ZIP" >/dev/null
+	rm "$ZIP"
+	mv "$FOLDER" "web"
+
+	setupserver "$1"
+
+	git init >/dev/null
+	git add .
+	git commit -m "basic app" >/dev/null
+
+	heroku create "kik-$1" --remote master >/dev/null
+	if [ "$?" != "0" ] ; then
+		cd ..
+		rm -r "$1"
+		echo "$BASE: failed to setup heroku app"
+		echo "$BASE: app name is likely taken"
+		exit 1
+	fi
+
+	git push master master
+}
+
+setupserver () {
+	echo "web: zerver web" > Procfile
+	cat <<EOF > package.json
+{
+  "name" : "$1" ,
+  "version" : "0.0.1" ,
+  "engines" : {
+    "node" : ">=0.8.0" ,
+    "npm"  : ">=1.1.0"
+  },
+  "dependencies" : {
+    "zerver" : ">=0.2.0"
+  }
+}
+EOF
+}
+
+appname () {
+	cat .git/config | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/ /g' | sed 's/.*\[remote "master"\][^[]*url = git@heroku.com://' | sed 's/.git.*$//'
+}
+
+branchname () {
+	git rev-parse --symbolic-full-name --abbrev-ref HEAD
+}
+
+printurl () {
+	APP="`appname`"
+	BRANCH="`branchname`"
+	HEROKU="$APP"
+
+	if [ "$BRANCH" != "master" ] ; then
+		HEROKU="$HEROKU-$BRANCH"
+	fi
+
+	echo "http://$HEROKU.herokuapp.com"
+}
+
+hasremote () {
+	grep '\[remote "$1"\]' .git/config 2>/dev/null
+}
+
+createremote () {
+	APP="`appname`"
+	if [ -z "$APP" ] ; then
+		echo "$BASE: app name not found"
+		exit 1
+	fi
+
+	heroku create "$APP-$1" --remote "$1"
+	if [ "$?" != "0" ] ; then
+		echo "$BASE: failed to setup heroku app for branch"
+		echo "$BASE: app name is likely taken"
+		exit 1
+	fi
+}
+
+pushcode () {
+	BRANCH="`branchname`"
+	if [ -z "$BRANCH" ] ; then
+		echo "$BASE: failed to find current branch"
+		exit 1
+	fi
+
+	if [ "$BRANCH" != "master" ] && [ -z "`hasremote $BRANCH`" ] ; then
+		createremote $BRANCH
+	fi
+
+	git push "$BRANCH" "$BRANCH":master
+}
+
+runserver () {
+	foreman start
+}
+
+
+
+# Check dependencies
+
+if [ -z "`which heroku`" ] ; then
+	echo "$BASE: heroku must be installed"
+	echo "$BASE: download it from https://toolbelt.heroku.com/"
+	exit 1
+fi
+
+for CMD in "heroku foreman git unzip curl" ; do
+	if [ -z "`which $CMD`" ] ; then
+		echo "$BASE: $CMD must be installed"
+		exit 1
+	fi
+done
+
+
+
+# Run command
+
+if [ "$1" = "new" ] ; then
+	newproject "$2"
+	exit 0
+elif [ "$1" = "deploy" ] ; then
+	pushcode
+	exit 0
+elif [ "$1" = "run" ] ; then
+	runserver
+	exit 0
+elif [ "$1" = "url" ] ; then
+	printurl
+	exit 0
+else
+	echo "$BASE: available commands:"
+	echo -e "\t$BASE new <app_name>"
+	echo -e "\t$BASE run"
+	echo -e "\t$BASE deploy"
+	echo -e "\t$BASE url"
+	exit 1
+fi

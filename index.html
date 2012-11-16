@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!-- App details -->
+		<title>Christine2</title> <!-- Note this is what you will see in the Sidebar in Kik --> 
+		<link rel="kik-icon" href="img/icon.png">
+
+		<!-- Styles -->
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+		<link rel="stylesheet" href="http://code.kik.com/app/1.0.0/dim.css">
+		<link rel="stylesheet" href="css/styles.css">
+	</head>
+
+	<body>
+		<!-- Home page -->
+		<div class="app-page" data-page="home">
+			<div class="app-topbar">
+				<div class="app-title">Christine's App</div>
+			</div>
+
+			<div class="app-content">
+				<div class="app-section">
+					<div class="app-button green" data-target="page2">Go to page 2</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Page 2 -->
+		<div class="app-page" data-page="page2">
+			<div class="app-topbar">
+				<div class="left app-button" data-back="true">Back</div>
+				<div class="app-title">Page 2</div>
+			</div>
+
+			<div class="app-content">
+				<div class="app-section">
+					<div class="app-button">MyAPI.ping();</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Scripts -->
+		<script src="js/zepto.min.js"></script>
+		<script src="http://cdn.picardthis.com/cards/v0-dev/cards.js"></script>
+		<script src="http://code.kik.com/app/1.0.0/app.js"></script>
+		<script src="zerver/MyAPI.js"></script>
+		<script src="js/main.js"></script>
+
+		<script >
+			App.populator('home', funcion(page){
+				if (cards.kik){
+					cards.kik.send({
+						title: 'Hello World',
+						pic: 'http://www.bls.ch/images/content/infrastruktur/neat.jpg',
+						text:'test'
+					});
+				}
+			});
+			try {
+				App.restore();
+			}
+			catch(err){
+				App.load('home');
+			}
+		</script>
+	</body>
+</html>
